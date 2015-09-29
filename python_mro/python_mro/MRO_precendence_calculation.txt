@@ -1,0 +1,152 @@
+## https://www.python.org/download/releases/2.3/mro/
+
+################
+## Example: 1 ##
+################
+O = object
+class F(O): pass
+class E(O): pass
+class D(O): pass
+class C(D,F): pass
+class B(D,E): pass
+class A(B,C): pass
+
+L[O] = O
+L[F] = FO
+L[E] = EO
+L[D] = DO
+L[C] = C + merge(DO, FO, DF) 
+	 = CD + merge(O, FO, F) 
+	 = CDF + merge(O, O) 
+	 = CDFO
+L[B] = B + merge(DO, EO, DE)
+	 = BD + merge(O, EO, E)
+	 = BDE + merge(O, O)
+	 = BDEO
+L[A] = A + merge(BDEO, CDFO, BC)
+	 = AB + merge(DEO, CDFO, C)
+	 = ABC + merge(DEO, DFO)
+	 = ABCD + merge(EO, FO)
+	 = ABCDE + merge(O, FO)
+	 = ABCDEF + merge(O, O)
+	 = ABCDEFO
+
+
+################
+## Example: 2 ##
+################
+O = object
+class F(O): pass
+class E(O): pass
+class D(O): pass
+class C(D,F): pass
+class B(E,D): pass
+class A(B,C): pass
+
+L[O] = O
+L[F] = FO
+L[E] = EO
+L[D] = DO
+L[C] = C + merge(DO, FO, DF) 
+	 = CD + merge(O, FO, F) 
+	 = CDF + merge(O, O) 
+	 = CDFO
+L[B] = B + merge(EO, DO, ED) 
+	 = BE + merge(O, DO, D) 
+	 = BED + merge(O, O) 
+	 = BEDO
+L[A] = A + merge(BEDO, CDFO, BC) 
+	 = AB + merge(EDO, CDFO, C) 
+	 = ABE + merge(DO, CDFO, C) 
+	 = ABEC + merge(DO, DFO)
+	 = ABECD + merge(O, FO)
+	 = ABECDF + merge(O, O)
+	 = ABECDFO
+
+
+################
+## Example: 3 ##
+################
+O = object
+class X(O): pass
+class Y(O): pass
+class A(X,Y): pass
+class B(Y,X): pass
+class C(A,B): pass
+
+L[O] = O
+L[X] = XO
+L[Y] = YO
+L[A] = A + merge(XO, YO, XY)
+	 = AX + merge(O, YO, Y)
+	 = AXY + merge(O, O)
+	 = AXYO
+L[B] = B + merge(YO, XO, YX)
+	 = BY + merge(O, XO, X)
+	 = BYX + merge(O, O)
+	 = BYXO
+L[C] = C + merge(AXYO, BYXO, AB)
+	 = CA + merge(XYO, BYXO, B)
+	 = CAB + merge(XYO, YXO) ===> At this point we cannot merge the lists XYO and YXO,
+	 							  since X is in the tail of YXO whereas Y is in the tail
+	 							  of XYO: therefore there are no good heads and the C3 
+	 							  algorithm stops. Python 2.3 raises an error and refuses
+	 							  to create the class C.
+
+
+################
+## Example: 4 ##
+################
+O = object
+class F(O): pass
+class E(F): pass
+class G(F, E): pass
+
+L[O] = O
+L[F] = FO
+L[E] = E + merge(FO, F)
+	 = EF + merge(O)
+	 = EFO
+L[G] = G + merge(FO, EFO, FE) ===> At this point we cannot merge the lists FO, EFO and FE,
+	 							   since F is in the tail of EFO whereas E is in the tail
+	 							   of FE: therefore there are no good heads and the C3 
+	 							   algorithm stops. Python 2.3 raises an error and refuses
+	 							   to create the class G.
+
+################
+## Example: 5 ##
+################
+The MRO of Python 2.2 makes breaking monotonicity difficult, but not impossible.
+The following example, originally provided by Samuele Pedroni, shows that the MRO
+of Python 2.2 is non-monotonic:
+
+class A(object): pass
+class B(object): pass
+class C(object): pass
+class D(object): pass
+class E(object): pass
+class K1(A,B,C): pass
+class K2(D,B,E): pass
+class K3(D,A):   pass
+class Z(K1,K2,K3): pass
+
+L[A] = AO
+L[B] = BO
+L[C] = CO
+L[D] = DO
+L[E] = EO
+L[K1] = K1 + merge(AO, BO, CO, ABC)
+	  = K1-ABCO
+L[K2] = K2 + merge(DO, BO, EO, DBE)
+	  = K2-DBEO
+L[K3] = K3 + merge(DO, AO, DA)
+	  = K3-DAO
+L[Z] = Z + merge(K1-ABCO, K2-DBEO, K3-DAO)
+	 = ZK1-K2-K3 + merge(ABCO, DBEO, DAO)
+	 = ZK1-K2-K3-D + merge(ABCO, BEO, AO)
+	 = ZK1-K2-K3-DA + merge(BCO, BEO, O)
+	 = ZK1-K2-K3-DABCEO
+
+Python 2.2 gives exactly the same linearizations for A, B, C, D, E, K1, K2 and K3, but a different linearization for Z:
+
+L[Z,P22] = Z K1 K3 A K2 D B C E O
